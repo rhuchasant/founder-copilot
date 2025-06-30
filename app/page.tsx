@@ -1,88 +1,180 @@
 "use client";
-
 import { useState } from "react";
 
 export default function Home() {
   const [revenue, setRevenue] = useState("");
-  const [market, setMarket] = useState("AI SaaS");
-  const [growth, setGrowth] = useState("20% MoM");
-  const [response, setResponse] = useState<string | null>(null);
+  const [market, setMarket] = useState("");
+  const [growth, setGrowth] = useState("");
+  const [valuation, setValuation] = useState("");
+  const [summary, setSummary] = useState("");
 
-  const handleSubmit = async () => {
-    setResponse("Loading...");
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+    setSummary("");
 
-    try {
-      const res = await fetch("https://go3twfspu7.execute-api.us-east-1.amazonaws.com/valuation", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          revenue: Number(revenue),
-          market,
-          growth,
-        }),
-      });
+    const response = await fetch("https://go3twfspu7.execute-api.us-east-1.amazonaws.com/orchestrate-valuation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        revenue: parseFloat(revenue),
+        market,
+        growth,
+      }),
+    });
 
-      const data = await res.json();
-      console.log("API Response:", data); // helpful for debugging
+    const data = await response.json();
+    setValuation(data.valuation || "No response received.");
+  };
 
-      if (data?.valuation) {
-        setResponse(data.valuation);
-      } else {
-        setResponse("No valuation received.");
-      }
-    } catch (err) {
-      console.error(err);
-      setResponse("Error fetching valuation.");
-    }
+  const handleSummarize = async () => {
+    const response = await fetch("https://go3twfspu7.execute-api.us-east-1.amazonaws.com/summarize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ valuation_response: valuation }),
+    });
+
+    const data = await response.json();
+    setSummary(data.summary || "No summary generated.");
   };
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white p-8">
-      <div className="max-w-xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold">💼 Startup Valuation Copilot</h1>
+    <div style={styles.container}>
+      <div style={styles.card}>
+        <h1 style={styles.heading}>📊 Startup Valuation Copilot</h1>
 
-        <div className="space-y-4">
+        <form onSubmit={handleSubmit} style={styles.form}>
           <input
-            type="number"
-            placeholder="Monthly Revenue ($)"
+            style={styles.input}
+            placeholder="Monthly Revenue (USD)"
             value={revenue}
             onChange={(e) => setRevenue(e.target.value)}
-            className="w-full p-2 bg-gray-800 rounded"
+            type="number"
           />
-
           <input
-            type="text"
-            placeholder="Market (e.g., AI SaaS)"
+            style={styles.input}
+            placeholder="Market Type (e.g. AI SaaS)"
             value={market}
             onChange={(e) => setMarket(e.target.value)}
-            className="w-full p-2 bg-gray-800 rounded"
           />
-
           <input
-            type="text"
-            placeholder="Growth (e.g., 20% MoM)"
+            style={styles.input}
+            placeholder="Growth Rate (e.g. 20% MoM)"
             value={growth}
             onChange={(e) => setGrowth(e.target.value)}
-            className="w-full p-2 bg-gray-800 rounded"
           />
+          <button type="submit" style={styles.button}>Estimate Valuation</button>
+        </form>
 
-          <button
-            onClick={handleSubmit}
-            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded"
-          >
-            Estimate Valuation
-          </button>
-        </div>
+        {valuation && (
+          <div style={styles.resultBox}>
+            <strong style={{ fontSize: "1.1rem" }}>💡 Estimated Valuation:</strong>
+            <pre style={styles.valuationText}>{valuation}</pre>
 
-        {response && (
-          <div className="mt-6 bg-gray-800 p-4 rounded">
-            <h2 className="text-xl font-semibold">💡 Estimated Valuation:</h2>
-            <p className="mt-2 whitespace-pre-line">{response}</p>
+            <button onClick={handleSummarize} style={styles.summarizeButton}>
+              📝 Summarize
+            </button>
+
+            {summary && (
+  <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid #334155" }}>
+    <strong>🔍 Summary:</strong>
+    <ul style={styles.summaryList}>
+      {summary
+        .split("\n")
+        .filter((line) => line.trim().startsWith("•") || line.trim().startsWith("-"))
+        .map((point, idx) => (
+          <li key={idx}>{point.replace(/^[-•]\s*/, "")}</li>
+        ))}
+    </ul>
+  </div>
+)}
+
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }
+
+const styles = {
+  container: {
+    minHeight: "100vh",
+    width: "100%",
+    backgroundColor: "#0f172a",
+    color: "white",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: "2rem 1rem",
+    boxSizing: "border-box" as const,
+  },
+  card: {
+    width: "100%",
+    maxWidth: "600px",
+    backgroundColor: "#1e293b",
+    padding: "2rem",
+    borderRadius: "16px",
+    boxShadow: "0 0 20px rgba(0,0,0,0.3)",
+  },
+  heading: {
+    fontSize: "2rem",
+    marginBottom: "1.5rem",
+    fontWeight: "bold" as const,
+    textAlign: "center" as const,
+  },
+  form: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "1rem",
+  },
+  input: {
+    padding: "0.75rem",
+    borderRadius: "10px",
+    border: "1px solid #334155",
+    backgroundColor: "#0f172a",
+    color: "white",
+    fontSize: "1rem",
+  },
+  button: {
+    backgroundColor: "#3b82f6",
+    color: "white",
+    padding: "0.8rem",
+    borderRadius: "10px",
+    fontSize: "1rem",
+    fontWeight: "bold" as const,
+    border: "none",
+    cursor: "pointer",
+    transition: "background 0.2s ease",
+  },
+  summarizeButton: {
+    marginTop: "1rem",
+    backgroundColor: "#22c55e",
+    color: "white",
+    padding: "0.6rem 1rem",
+    borderRadius: "8px",
+    fontSize: "0.95rem",
+    border: "none",
+    cursor: "pointer",
+    fontWeight: "bold" as const,
+  },
+  summaryList: {
+  marginTop: "0.75rem",
+  paddingLeft: "1.25rem",
+  listStyleType: "disc" as const,
+  lineHeight: "1.6",
+  color: "#e2e8f0", // soft white
+},
+
+  resultBox: {
+    backgroundColor: "#0f172a",
+    padding: "1.25rem",
+    borderRadius: "10px",
+    marginTop: "2rem",
+    border: "1px solid #334155",
+    lineHeight: 1.6,
+  },
+  valuationText: {
+    whiteSpace: "pre-wrap" as const,
+    marginTop: "1rem",
+    fontSize: "1rem",
+  },
+};
